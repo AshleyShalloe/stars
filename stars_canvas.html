@@ -1,0 +1,187 @@
+<html>
+<head>
+<style>
+    #starfieldCanvas{
+        width: 100vw;
+        height: 100vh;
+    }
+    html{
+        background: black;
+        color: white;
+        font-family: sans-serif;
+    }
+    body{
+        margin: 0 auto;
+    }
+    #starCount{
+        text-align: center;
+    }
+</style>
+</head>
+<body>
+<canvas id="starfieldCanvas" height="480" width="600"></canvas>
+<!-- <input type="number" id="starCount"></input> -->
+</body>
+<script>
+async function drawAndMoveStar(){
+    var xPos = canvasWidth * Math.random()
+	var yPos = canvasHeight * Math.random()
+    var pixelWidth = 1
+    var pixelHeight = 1
+    var magnitudeDivisor = 60 // sort of affects the warp speed
+	var xMag = Math.abs(xPos - (0.5*canvasWidth)) / magnitudeDivisor
+	var yMag = Math.abs(yPos - (0.5*canvasHeight)) / magnitudeDivisor
+	var updateSpeedInMs = 10
+    var scaleAdditionPerIteration = 0.01
+	xMag = xMag ? xMag : 1 // for the edge case where we're at exactly halfway, I guess
+	yMag = yMag ? yMag : 1
+    if ((xMag < 1.5) && (yMag < 1.5)){ // slow stars or stuck stars
+        drawAndMoveStar() // just try again
+        return 0;
+    }
+    // draw initial star
+    ctx.fillStyle = "white";
+    ctx.fillRect(Math.round(xPos), Math.round(yPos), pixelWidth, pixelHeight);
+    starCount += 1
+    if ((xPos <= (0.5 * canvasWidth)) && (yPos <= (0.5 * canvasHeight))){
+        // top left quadrant
+        while (xPos > 0){
+            ctx.clearRect(Math.round(xPos), Math.round(yPos), Math.round(pixelWidth), Math.round(pixelHeight))
+			xPos -= xMag
+			yPos -= yMag
+            pixelWidth += scaleAdditionPerIteration
+            pixelHeight += scaleAdditionPerIteration
+			ctx.fillRect(Math.round(xPos), Math.round(yPos), Math.round(pixelWidth)+trailFactor, Math.round(pixelHeight)+trailFactor)
+			await new Promise(r => setTimeout(r, updateSpeedInMs));
+		}
+    }
+    else if ((xPos <= (0.5 * canvasWidth)) && (yPos >= (0.5 * canvasHeight))){
+        // bottom left quadrant
+		while (xPos > 0){
+			ctx.clearRect(Math.round(xPos), Math.round(yPos), Math.round(pixelWidth), Math.round(pixelHeight))
+            xPos -= xMag
+			yPos += yMag
+            pixelWidth += scaleAdditionPerIteration
+            pixelHeight += scaleAdditionPerIteration
+			ctx.fillRect(Math.round(xPos), Math.round(yPos), Math.round(pixelWidth)+trailFactor, Math.round(pixelHeight)+trailFactor)
+            await new Promise(r => setTimeout(r, updateSpeedInMs));
+		}
+	}
+	else if  ((xPos >= (0.5 * canvasWidth)) && (yPos <= ( 0.5 * canvasHeight))){
+        // top right quadrant
+		while (xPos < canvasWidth){
+			ctx.clearRect(Math.round(xPos), Math.round(yPos), Math.round(pixelWidth), Math.round(pixelHeight))
+            xPos += xMag
+			yPos -= yMag
+            pixelWidth += scaleAdditionPerIteration
+            pixelHeight += scaleAdditionPerIteration
+			ctx.fillRect(Math.round(xPos), Math.round(yPos), Math.round(pixelWidth)+trailFactor, Math.round(pixelHeight)+trailFactor)
+            await new Promise(r => setTimeout(r, updateSpeedInMs));
+		}
+	}
+	else{
+        // bototm right quadrant
+		while (xPos < canvasWidth){
+			ctx.clearRect(Math.round(xPos), Math.round(yPos), Math.round(pixelWidth), Math.round(pixelHeight))
+            xPos += xMag
+			yPos += yMag
+            pixelWidth += scaleAdditionPerIteration
+            pixelHeight += scaleAdditionPerIteration
+			ctx.fillRect(Math.round(xPos), Math.round(yPos), Math.round(pixelWidth)+trailFactor, Math.round(pixelHeight)+trailFactor)
+            await new Promise(r => setTimeout(r, updateSpeedInMs));
+		}
+	}
+    ctx.clearRect(Math.round(xPos), Math.round(yPos), Math.round(pixelWidth), Math.round(pixelHeight))
+    starCount -= 1
+    // document.getElementById("starCount").value = starCount
+}
+
+function generateNStars(n){
+	`
+	Arbitrarily and inefficiently attempts to keep the star count between 
+	the global min and max by speeding up and slowing down star creation.
+	`
+	if (starCount < starCountMin){
+		for (var i=0; i<n; i++){
+			drawAndMoveStar();
+		}
+		starGenTicks = starGenTicks > 20 ? starGenTicks  - 10 : starGenTicks
+		setTimeout(generateNStars, starGenTicks, 2)
+	}
+	else if (starCount < starCountMax){
+		for (var i=0; i<n; i++){
+			drawAndMoveStar();
+		}
+		starGenTicks = starGenTicks + 10
+		setTimeout(generateNStars, starGenTicks, 1)
+	}
+	//console.log(starGenTicks, starCount)
+}
+
+function getWidth() {
+  return Math.max(
+    document.body.scrollWidth,
+    document.documentElement.scrollWidth,
+    document.body.offsetWidth,
+    document.documentElement.offsetWidth,
+    document.documentElement.clientWidth
+  );
+}
+
+function getHeight() {
+  return Math.max(
+    document.body.scrollHeight,
+    document.documentElement.scrollHeight,
+    document.body.offsetHeight,
+    document.documentElement.offsetHeight,
+    document.documentElement.clientHeight
+  );
+}
+
+function fixDimensions(){
+    document.getElementById("starfieldCanvas").width = getWidth();
+    document.getElementById("starfieldCanvas").height = getHeight();
+    canvasWidth = parseInt(document.getElementById("starfieldCanvas").width);
+    canvasHeight = parseInt(document.getElementById("starfieldCanvas").height);
+    console.log("here")
+}
+
+function debounce(func, timeout = 300){
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { func.apply(this, args); }, timeout);
+    };
+}
+
+const debounceFixDimesions = debounce(() => fixDimensions());
+
+function init(){
+    if (trailsOn){
+        trailFactor = 0.1
+    }
+    fixDimensions();
+    window.addEventListener('resize', function(event){debounceFixDimesions()});
+    generateNStars(20);
+}
+
+// star generation parameters
+var starCountMax = 200
+var starCountMin = 100
+var starGenTicks = 120
+var starCount = 0
+var trailFactor = 0
+var trailsOn = false
+
+// canvas setup
+var c = document.getElementById("starfieldCanvas");
+var ctx = c.getContext("2d");
+ctx.fillStyle = "white";
+
+// initial dimension setup
+var canvasWidth = parseInt(document.getElementById("starfieldCanvas").width);
+var canvasHeight = parseInt(document.getElementById("starfieldCanvas").height);
+
+init();
+</script>
+</html>
